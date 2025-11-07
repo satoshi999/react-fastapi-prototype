@@ -1,0 +1,58 @@
+services:
+  backend:
+    image: python:3.13-slim
+    env_file: ./.env
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    expose:
+      - "8000"
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    restart: unless-stopped
+
+  frontend:
+    image: node:24.1.0
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    expose:
+      - "5173"
+    command: >
+      sh -c "npm ci && npm run dev -- --host"
+    healthcheck:
+      # サーバが応答するまでヘルスNGにしておく
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:5173 >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 3s
+      timeout: 2s
+      retries: 60
+      start_period: 60s # npm ci に時間がかかるなら長めに
+
+  db:
+    image: mysql:8.4
+    environment:
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+    working_dir: /app
+    volumes:
+      - ./db/data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d
+    expose:
+      - "3306:3306"
+
+  proxy:
+    image: caddy:2
+    depends_on:
+      frontend:
+        condition: service_healthy
+    ports:
+      - "5173:5173" # ← 外からはこの1ポートだけ見える
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
