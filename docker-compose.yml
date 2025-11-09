@@ -1,4 +1,16 @@
+version: "3.9"
+
+# =========================
+# volumes（common）
+# =========================
+volumes:
+  db_data:
+  caddy_data:
+
 services:
+  # =========================
+  # backend（common）
+  # =========================
   backend:
     image: python:3.13-slim
     env_file: ./.env
@@ -11,7 +23,31 @@ services:
       sh -c "pip install --no-cache-dir -r requirements.txt &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     restart: unless-stopped
+    profiles: ["dev", "prod"]
 
+  # =========================
+  # db（common）
+  # =========================
+  db:
+    image: mysql:8.4
+    env_file: ./.env
+    environment:
+      MYSQL_HOST: ${DB_HOST}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d
+    expose:
+      - "3306"
+    profiles: ["dev", "prod"]
+
+  # =========================
+  # frontend（dev only）
+  # - Vite HMR で 5173 を立ち上げ
+  # =========================
   frontend:
     image: node:24.1.0
     working_dir: /app
@@ -32,30 +68,55 @@ services:
       timeout: 2s
       retries: 60
       start_period: 60s # npm ci に時間がかかるなら長めに
+    profiles: ["dev"]
 
-  db:
-    image: mysql:8.4
-    environment:
-      - MYSQL_DATABASE=${DB_NAME}
-      - MYSQL_USER=${DB_USER}
-      - MYSQL_PASSWORD=${DB_PASSWORD}
-      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
-    working_dir: /app
-    volumes:
-      - db_data:/var/lib/mysql
-      - ./db/init:/docker-entrypoint-initdb.d
-    expose:
-      - "3306:3306"
-
-  proxy:
+  # =========================
+  # proxy-dev（dev only）
+  # - Caddy で :5173 を公開
+  # - /api -> backend:8000、その他 -> frontend:5173
+  # =========================
+  proxy-dev:
     image: caddy:2
     depends_on:
       frontend:
         condition: service_healthy
     ports:
-      - "5173:5173" # ← 外からはこの1ポートだけ見える
+      - "5173:5173" # 外部公開はこの1ポートのみ
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    profiles: ["dev"]
 
-volumes:
-  db_data:
+  # =========================
+  # frontend-build（prod only）
+  # - 本番はビルド成果物をCaddyが配信
+  # =========================
+  frontend-build:
+    image: node:24.1.0
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    command: >
+      sh -c "npm ci && npm run build"
+    profiles: ["prod"]
+
+  # =========================
+  # proxy-prod（prod only）
+  # - 80/443 を公開、HTTPS + 独自ドメイン
+  # - /srv に dist をマウントして静的配信
+  # =========================
+  proxy-prod:
+    image: caddy:2
+    depends_on:
+      - backend
+      - frontend-build
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile.prod:/etc/caddy/Caddyfile:ro
+      - ./frontend/dist:/srv:ro # Vite build 出力をそのまま配信
+      - caddy_data:/data # 証明書キャッシュ
+    ports:
+      - "80:80"
+      - "443:443"
+    profiles: ["prod"]

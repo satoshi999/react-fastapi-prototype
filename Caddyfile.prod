@@ -1,0 +1,31 @@
+{
+  # 本番ACME用（任意）
+  email {$ACME_EMAIL}
+}
+
+# 80->443 リダイレクト
+http://{$SITE_DOMAIN} {
+  redir https://{$SITE_DOMAIN}{uri}
+}
+
+# 本番ホスト
+https://{$SITE_DOMAIN} {
+  # Viteのビルド成果物を配信
+  root * /srv
+  try_files {path} /index.html
+  file_server
+
+  # APIはFastAPIへ
+  handle_path /api* {
+    reverse_proxy backend:8000
+  }
+
+  # ちょい堅めのヘッダと圧縮
+  encode zstd gzip
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "strict-origin-when-cross-origin"
+  }
+}
