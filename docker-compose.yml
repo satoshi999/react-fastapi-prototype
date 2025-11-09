@@ -42,7 +42,7 @@ services:
       - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
     working_dir: /app
     volumes:
-      - ./db/data:/var/lib/mysql
+      - db_data:/var/lib/mysql
       - ./db/init:/docker-entrypoint-initdb.d
     expose:
       - "3306:3306"
@@ -56,3 +56,6 @@ services:
       - "5173:5173" # ← 外からはこの1ポートだけ見える
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+
+volumes:
+  db_data:

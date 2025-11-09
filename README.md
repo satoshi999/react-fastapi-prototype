@@ -161,7 +161,7 @@ const API_BASE = `${window.location.origin}/api`
 
   * Python → `backend/requirements.txt`
   * Node.js → `frontend/package.json`
-* **DB永続化**: `db/data`（Dockerマウント）
+* **DB永続化**: `db_data`（Dockerボリューム）
 
 ---
 

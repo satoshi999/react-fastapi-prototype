@@ -4,5 +4,3 @@ __pycache__
 .env
 .env.development
 .DS_Store
-db/data/*
-!db/data/.gitkeep
