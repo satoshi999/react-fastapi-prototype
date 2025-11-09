@@ -6,9 +6,6 @@ import mysql.connector as mysql
 
 app = FastAPI()
 
-# APIは /api 配下にまとめる
-api = APIRouter(prefix="/api")
-
 
 def get_db():
     return mysql.connect(
@@ -29,12 +26,12 @@ class TodoUpdate(BaseModel):
     done: bool | None = None
 
 
-@api.get("/health")
+@app.get("/health")
 def health():
     return {"ok": True}
 
 
-@api.get("/todos")
+@app.get("/todos")
 def list_todos():
     conn = get_db()
     cur = conn.cursor(dictionary=True)
@@ -48,7 +45,7 @@ def list_todos():
     return rows
 
 
-@api.post("/todos", status_code=201)
+@app.post("/todos", status_code=201)
 def create_todo(body: TodoCreate):
     conn = get_db()
     cur = conn.cursor()
@@ -59,7 +56,7 @@ def create_todo(body: TodoCreate):
     return {"id": todo_id, "title": body.title, "done": False}
 
 
-@api.patch("/todos/{todo_id}")
+@app.patch("/todos/{todo_id}")
 def update_todo(todo_id: int, body: TodoUpdate):
     sets = []
     vals = []
@@ -84,7 +81,7 @@ def update_todo(todo_id: int, body: TodoUpdate):
     return {"ok": True}
 
 
-@api.delete("/todos/{todo_id}", status_code=204)
+@app.delete("/todos/{todo_id}", status_code=204)
 def delete_todo(todo_id: int):
     conn = get_db()
     cur = conn.cursor()
@@ -95,6 +92,3 @@ def delete_todo(todo_id: int):
     if changed == 0:
         raise HTTPException(status_code=404, detail="Not found")
     return
-
-
-app.include_router(api)

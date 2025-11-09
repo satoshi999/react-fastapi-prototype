@@ -1,6 +1,6 @@
 :5173 {
-  # /api は FastAPI へ
-  handle /api* {
+  # /api は FastAPI へ（/apiを剥がす）
+  handle_path /api* {
     reverse_proxy backend:8000
   }
   # それ以外はフロントへ
