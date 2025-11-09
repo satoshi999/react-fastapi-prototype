@@ -1,6 +1,6 @@
 {
-  # 本番ACME用（任意）
   email {$ACME_EMAIL}
+  acme_ca https://acme-v02.api.letsencrypt.org/directory
 }
 
 # 80->443 リダイレクト
@@ -10,14 +10,18 @@ http://{$SITE_DOMAIN} {
 
 # 本番ホスト
 https://{$SITE_DOMAIN} {
-  # Viteのビルド成果物を配信
-  root * /srv
-  try_files {path} /index.html
-  file_server
+  # --- 1) /api を最優先でマッチ ---
+  @api path /api/*
 
-  # APIはFastAPIへ
-  handle_path /api* {
+  handle @api {
     reverse_proxy backend:8000
+  }
+
+  # --- 2) それ以外は静的配信（最後に） ---
+  handle {
+    root * /srv
+    try_files {path} /index.html
+    file_server
   }
 
   # ちょい堅めのヘッダと圧縮
