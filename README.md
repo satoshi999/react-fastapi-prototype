@@ -1,167 +1,214 @@
-# react-fastapi-prototype
+# 🚀 react-fastapi-prototype
 
 ## 🧭 概要
 
-**react-fastapi-prototype** は、  
+**react-fastapi-prototype** は、
 **「開発初期に即アプリを立ち上げ、ロジックに集中するための最小構成テンプレート」** です。
 
-React (Vite) + FastAPI + MySQL を **Docker Compose** で統合し、  
-Caddy によって外部からは単一ポート（5173）で見える構成になっています。
-
-> 開発・本番を区別せず、  
-> 「npm run dev」一発でフロントもバックもホットリロードしながら動かすことを目的としています。
+React (Vite) + FastAPI + MySQL を **Docker Compose** で統合し、
+Caddy によるリバースプロキシで **単一ポート運用** を実現します。
 
 ---
 
-## 💡 このプロジェクトの思想
+## 💡 このテンプレートの思想
 
-### ✅ していること
-- **最短で動く**：`docker compose up` だけで依存インストール＋ビルド＋起動  
-- **単一ポート構成**：Caddyで `/api` をFastAPIに、その他をReactにリバースプロキシ  
-- **開発/本番の区別をしない**：同じ `.env` と同じコマンドで動作  
-- **VS Codeで即編集できる**：`node_modules`をホスト側に置くため、型補完エラーなし  
-- **Todoアプリ実装済み**：動作確認がすぐできるサンプル付き  
+### ✅ ポイント
 
-### 🚫 していないこと
-- **マイグレーション機能**（例：Alembic）は未搭載（必要なら後から追加）  
-- **パフォーマンス最適化**（npmキャッシュやマルチステージビルドなど）は未実装  
-- **本番専用ビルド**や**環境分離**もしていません  
-- **長期開発を想定した構成管理**はあえて行っていません  
+* **最短で動く**：`docker compose up --profile dev` ですぐ立ち上がる
+* **単一ポート構成**：Caddy が `/api` を FastAPI に、それ以外を React に振り分け
+* **開発/本番を profile で切り分け**
 
-> **目的は「最初のロジックを書き始めるまでの障壁を極限まで減らすこと」。**  
-> プロトタイプ段階では「動く」ことを最優先にしています。  
->  
-> 長期開発や本番運用で不都合があれば、**この構成をベースに自由に修正してください。**
+  * `dev`：Vite の HMR（5173）を使いながら即時開発
+  * `prod`：HTTPS + 独自ドメイン + 静的配信（ビルド済み）
+* **HTTPS/独自ドメイン対応を最速で導入**：Let's Encrypt による自動証明書発行
+* **VS Code ですぐ編集可能**：ホストの `node_modules` を利用し型補完OK
+* **Todo アプリ付き**：起動直後に動作確認可能
+
+### 🚫 あえてしていないこと
+
+* マイグレーション（Alembic 等）未搭載
+* パフォーマンス最適化（キャッシュ、マルチステージビルド）未実装
+* 長期運用を想定した CI/CD 構成や環境分離は最小限
+
+> **目的は「最初のロジックを書き始めるまでの障壁を極限まで減らすこと」。**
+>
+> プロトタイプ段階では「動くこと」を最優先。
+> 長期開発や本番運用では、このテンプレを基盤に自由に拡張してください。
 
 ---
 
-## ⚙️ セットアップ手順
+## ⚙️ プロファイル運用
 
-### 1️⃣ `.env` を準備
-プロジェクトルートに `.env` を作成します。  
-`.env.example` に例が記載されています。
+| profile  | 用途        | 特徴                             | 公開ポート               |
+| -------- | --------- | ------------------------------ | ------------------- |
+| **dev**  | 開発・HMRあり  | Vite dev server (5173) をそのまま利用 | 5173 |
+| **prod** | 本番・サービス公開 | HTTPS + 独自ドメイン + 静的配信          | 80 / 443            |
 
-特にこだわりがなければ、以下のコマンドでOKです：
+---
+
+## 🧩 開発（profile=dev）
+
+開発時はホットリロード（HMR）を有効にし、
+**Caddy が `/api` を FastAPI に、それ以外を Vite に転送**します。
+
+### 起動手順
 
 ```bash
-cp .env.example .env
-````
+docker compose --profile dev up
+```
 
-この `.env` は **MySQL の環境変数**を定義します。
-MySQL コンテナと FastAPI 双方で同じ値を利用します。
+### アクセス
+
+* React (Vite)： [http://localhost:5173](http://localhost:5173)
+* FastAPI： Caddy 経由で `/api` パスにアクセス
+
+> EC2 上で公開する場合も、**5173 ポートを開放**してください。
+> HTTPS は不要で、HMR をそのまま使えます。
 
 ---
 
-### 2️⃣ コンテナを起動
+## 🌐 本番（profile=prod）
+
+本番では、Vite をビルドして静的配信します。
+Caddy が **Let's Encrypt で自動的に証明書を発行し、HTTPS/独自ドメインで配信**します。
+
+### .env の設定(ドメインとLet's Encrypt 通知メールは本番のみ参照)
 
 ```bash
-docker compose up
+# ---- MySQL（共通） ----
+DB_HOST=db
+DB_USER=app
+DB_PASSWORD=app_pw
+DB_ROOT_PASSWORD=password
+DB_NAME=appdb
+
+# ---- 本番のみ使用 ----
+SITE_DOMAIN=example.com           # または 13.112.109.54.nip.io
+ACME_EMAIL=admin@example.com      # Let's Encrypt 通知用
 ```
 
-依存ライブラリのインストール・ビルドを含めて自動的に起動します。
+### 起動コマンド
+
+```bash
+docker compose --profile prod up
+```
+
+### アクセス
+
+* HTTPS： `https://<SITE_DOMAIN>`
+* 自動リダイレクト： `http://<SITE_DOMAIN>` → `https://<SITE_DOMAIN>`
 
 ---
 
-### 3️⃣ ブラウザで確認
-
-[http://localhost:5173](http://localhost:5173) にアクセス。
-
-React + FastAPI + MySQL が接続された状態で、
-簡単な **Todo アプリ** が動作します。
-
----
-
-## 🧱 構成
+## ⚙️ 構成概要
 
 ```
-├── .gitignore
-├── .env.example
-├── Caddyfile
-├── backend
-│   ├── app
-│   │   └── main.py
-│   └── requirements.txt
-├── db
-│   ├── data
-│   │   └── .gitkeep
-│   └── init
-│       └── 001_schema.sql
+├── Caddyfile                 # dev 用
+├── Caddyfile.prod            # prod 用（HTTPS対応）
 ├── docker-compose.yml
-└── frontend
-    ├── index.html
-    ├── package.json
-    ├── src
-    │   ├── App.tsx
-    │   └── main.tsx
-    └── vite.config.ts
+├── .env.example
+├── backend/
+│   ├── app/main.py
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   ├── vite.config.ts
+│   └── package.json
+└── db/
+    └── init/001_schema.sql
 ```
 
 ---
 
-## 🔁 ポート構成とプロキシ
+## 🔁 ポート構成とプロキシ挙動
 
-* **React (Vite)** → `5173`
-* **FastAPI** → `8000`
-* **Caddy** → `5173`（外部公開ポート）
+| コンポーネント                | ポート    | 用途                  |
+| ---------------------- | ------ | ------------------- |
+| **frontend (Vite)**    | 5173   | 開発時のみ HMR 用         |
+| **backend (FastAPI)**  | 8000   | API サーバ             |
+| **db (MySQL)**         | 3306   | DB                  |
+| **proxy-dev (Caddy)**  | 5173   | 開発時：単一ポートに見せるリバプロ   |
+| **proxy-prod (Caddy)** | 80/443 | 本番：HTTPS + 独自ドメイン配信 |
 
-Caddyfileの内容：
+---
+
+## 🧩 主要ファイル
+
+### 開発用 Caddyfile
 
 ```caddy
 :5173 {
-  # /api は FastAPI へ
   handle /api* {
     reverse_proxy backend:8000
   }
-  # それ以外はフロントへ
-  reverse_proxy frontend:5173
+  handle {
+    reverse_proxy frontend:5173
+  }
 }
 ```
 
-外部からは `5173` のみアクセス可能で、
-`/api` は自動的に FastAPI に転送されます。
+### 本番用 Caddyfile.prod
+
+```caddy
+{
+  email {$ACME_EMAIL}
+  acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+
+http://{$SITE_DOMAIN} {
+  redir https://{$SITE_DOMAIN}{uri}
+}
+
+https://{$SITE_DOMAIN} {
+  @api path /api/*
+  handle @api {
+    reverse_proxy backend:8000
+  }
+  handle {
+    root * /srv
+    try_files {path} /index.html
+    file_server
+  }
+
+  encode zstd gzip
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "strict-origin-when-cross-origin"
+  }
+}
+```
+
+---
+
+## 🧭 使い分けのまとめ
+
+| 環境     | コマンド                               | ポート    | HTTPS | 備考                     |
+| ------ | ---------------------------------- | ------ | ----- | ---------------------- |
+| **開発** | `docker compose --profile dev up`  | 5173   | ×     | HMR 有効。EC2 でも 5173 を開放 |
+| **本番** | `docker compose --profile prod up` | 80/443 | ○     | HTTPS + 独自ドメイン配信       |
 
 ---
 
 ## 🔗 React からの API アクセス
 
-フロント側では現在開いているホストをそのまま API ベースURLに利用します。
-
 ```ts
-// 現在のオリジンをそのままAPIのベースURLに
+// 現在のオリジンをそのまま利用
 const API_BASE = `${window.location.origin}/api`
 ```
 
 これにより、
-**開発／本番を意識せず** 同じコードでAPI通信が可能です。
+**開発／本番で環境変数の切り替え不要**で API 通信が行えます。
 
 ---
 
-## 🧩 このテンプレートをどう使うか
+## 🧑‍💻 このテンプレートが向いている人
 
-この構成は「**一人でPoC・試作を最速で形にする**」ためのものです。
-
-* とにかく早く動作確認したい
-* チームのセットアップ手順を最小化したい
-* コード中心で議論を進めたい
-
-といったケースに最適です。
-
-> 一方で、チーム開発・長期運用・セキュリティ要件が出てきたら
-> **マイグレーション／本番ビルド／環境分離**などを追加してください。
-> このテンプレートは「最初の地ならし」を目的としています。
-
----
-
-## 🧑‍💻 開発者メモ
-
-* **FastAPI**: `backend/app/main.py`
-* **React (Vite)**: `frontend/src`
-* **DB初期化SQL**: `db/init/001_schema.sql`
-* **依存パッケージ**:
-
-  * Python → `backend/requirements.txt`
-  * Node.js → `frontend/package.json`
-* **DB永続化**: `db_data`（Dockerボリューム）
+* 個人・小規模で PoC／試作を即形にしたい
+* HTTPS／独自ドメインを早期に組み込みたい
+* チームに配布する共通テンプレを整備したい
+* 開発・本番を profile 一つで明示的に切り替えたい
 
 ---
 
