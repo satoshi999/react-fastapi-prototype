@@ -2,8 +2,7 @@
 
 ## 概要
 
-**react-fastapi-prototype**は、
-**「開発初期に即アプリを立ち上げ、ロジックに集中するための最小構成テンプレート」**です。
+**react-fastapi-prototype**は、「開発初期に即アプリを立ち上げ、ロジックに集中するための最小構成テンプレート」です。
 
 React (Vite) + FastAPI + MySQLを**Docker Compose**で統合し、
 Caddyによるリバースプロキシで**単一ポート運用**を実現します。
