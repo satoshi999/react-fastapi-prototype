@@ -1,34 +1,34 @@
-# 🚀 react-fastapi-prototype
+# react-fastapi-prototype
 
-## 🧭 概要
+## 概要
 
-**react-fastapi-prototype** は、
-**「開発初期に即アプリを立ち上げ、ロジックに集中するための最小構成テンプレート」** です。
+**react-fastapi-prototype**は、
+**「開発初期に即アプリを立ち上げ、ロジックに集中するための最小構成テンプレート」**です。
 
-React (Vite) + FastAPI + MySQL を **Docker Compose** で統合し、
-Caddy によるリバースプロキシで **単一ポート運用** を実現します。
+React (Vite) + FastAPI + MySQLを**Docker Compose**で統合し、
+Caddyによるリバースプロキシで**単一ポート運用**を実現します。
 
 ---
 
-## 💡 このテンプレートの思想
+## このテンプレートの思想
 
-### ✅ ポイント
+### ポイント
 
-* **最短で動く**：`docker compose up --profile dev` ですぐ立ち上がる
-* **単一ポート構成**：Caddy が `/api` を FastAPI に、それ以外を React に振り分け
-* **開発/本番を profile で切り分け**
+* **最短で動く**：`docker compose up --profile dev`ですぐ立ち上がる
+* **単一ポート構成**：Caddyが `/api`をFastAPIに、それ以外をReactに振り分け
+* **開発/本番をprofileで切り分け**
 
-  * `dev`：Vite の HMR（5173）を使いながら即時開発
+  * `dev`：ViteのHMR（5173）を使いながら即時開発
   * `prod`：HTTPS + 独自ドメイン + 静的配信（ビルド済み）
-* **HTTPS/独自ドメイン対応を最速で導入**：Let's Encrypt による自動証明書発行
-* **VS Code ですぐ編集可能**：ホストの `node_modules` を利用し型補完OK
+* **HTTPS/独自ドメイン対応を最速で導入**：Let's Encryptによる自動証明書発行
+* **VS Codeですぐ編集可能**：ホストの`node_modules`を利用し型補完OK
 * **Todo アプリ付き**：起動直後に動作確認可能
 
-### 🚫 あえてしていないこと
+### あえてしていないこと
 
 * マイグレーション（Alembic 等）未搭載
 * パフォーマンス最適化（キャッシュ、マルチステージビルド）未実装
-* 長期運用を想定した CI/CD 構成や環境分離は最小限
+* 長期運用を想定したCI/CD構成や環境分離は最小限
 
 > **目的は「最初のロジックを書き始めるまでの障壁を極限まで減らすこと」。**
 >
@@ -37,7 +37,7 @@ Caddy によるリバースプロキシで **単一ポート運用** を実現�
 
 ---
 
-## ⚙️ プロファイル運用
+## プロファイル運用
 
 | profile  | 用途        | 特徴                             | 公開ポート               |
 | -------- | --------- | ------------------------------ | ------------------- |
@@ -46,10 +46,10 @@ Caddy によるリバースプロキシで **単一ポート運用** を実現�
 
 ---
 
-## 🧩 開発（profile=dev）
+## 開発（profile=dev）
 
 開発時はホットリロード（HMR）を有効にし、
-**Caddy が `/api` を FastAPI に、それ以外を Vite に転送**します。
+**Caddyが`/api`をFastAPIに、それ以外をViteに転送**します。
 
 ### 起動手順
 
@@ -59,20 +59,17 @@ docker compose --profile dev up
 
 ### アクセス
 
-* React (Vite)： [http://localhost:5173](http://localhost:5173)
-* FastAPI： Caddy 経由で `/api` パスにアクセス
-
-> EC2 上で公開する場合も、**5173 ポートを開放**してください。
-> HTTPS は不要で、HMR をそのまま使えます。
+* React(Vite)：[http://localhost:5173](http://localhost:5173)
+* FastAPI：Caddy経由で`/api`パスにアクセス
 
 ---
 
-## 🌐 本番（profile=prod）
+## 本番（profile=prod）
 
-本番では、Vite をビルドして静的配信します。
-Caddy が **Let's Encrypt で自動的に証明書を発行し、HTTPS/独自ドメインで配信**します。
+本番では、Viteをビルドして静的配信します。
+Caddyが**Let's Encrypt で自動的に証明書を発行し、HTTPS/独自ドメインで配信**します。
 
-### .env の設定(ドメインとLet's Encrypt 通知メールは本番のみ参照)
+### .envの設定(ドメインとLet's Encrypt通知メールは本番のみ参照)
 
 ```bash
 # ---- MySQL（共通） ----
@@ -95,16 +92,16 @@ docker compose --profile prod up
 
 ### アクセス
 
-* HTTPS： `https://<SITE_DOMAIN>`
-* 自動リダイレクト： `http://<SITE_DOMAIN>` → `https://<SITE_DOMAIN>`
+* HTTPS：`https://<SITE_DOMAIN>`
+* 自動リダイレクト：`http://<SITE_DOMAIN>` → `https://<SITE_DOMAIN>`
 
 ---
 
-## ⚙️ 構成概要
+## 構成概要
 
 ```
-├── Caddyfile                 # dev 用
-├── Caddyfile.prod            # prod 用（HTTPS対応）
+├── Caddyfile                 # dev用
+├── Caddyfile.prod            # prod用（HTTPS対応）
 ├── docker-compose.yml
 ├── .env.example
 ├── backend/
@@ -120,21 +117,21 @@ docker compose --profile prod up
 
 ---
 
-## 🔁 ポート構成とプロキシ挙動
+## ポート構成とプロキシ挙動
 
 | コンポーネント                | ポート    | 用途                  |
 | ---------------------- | ------ | ------------------- |
-| **frontend (Vite)**    | 5173   | 開発時のみ HMR 用         |
-| **backend (FastAPI)**  | 8000   | API サーバ             |
-| **db (MySQL)**         | 3306   | DB                  |
-| **proxy-dev (Caddy)**  | 5173   | 開発時：単一ポートに見せるリバプロ   |
-| **proxy-prod (Caddy)** | 80/443 | 本番：HTTPS + 独自ドメイン配信 |
+| **frontend(Vite)**    | 5173   | 開発時のみHMR用         |
+| **backend(FastAPI)**  | 8000   | APIサーバ             |
+| **db(MySQL)**         | 3306   | DB                  |
+| **proxy-dev(Caddy)**  | 5173   | 開発時：単一ポートに見せるリバプロ   |
+| **proxy-prod(Caddy)** | 80/443 | 本番：HTTPS + 独自ドメイン配信 |
 
 ---
 
-## 🧩 主要ファイル
+## 主要ファイル
 
-### 開発用 Caddyfile
+### 開発用Caddyfile
 
 ```caddy
 :5173 {
@@ -147,7 +144,7 @@ docker compose --profile prod up
 }
 ```
 
-### 本番用 Caddyfile.prod
+### 本番用Caddyfile.prod
 
 ```caddy
 {
@@ -182,16 +179,16 @@ https://{$SITE_DOMAIN} {
 
 ---
 
-## 🧭 使い分けのまとめ
+## 使い分けのまとめ
 
 | 環境     | コマンド                               | ポート    | HTTPS | 備考                     |
 | ------ | ---------------------------------- | ------ | ----- | ---------------------- |
-| **開発** | `docker compose --profile dev up`  | 5173   | ×     | HMR 有効。EC2 でも 5173 を開放 |
+| **開発** | `docker compose --profile dev up`  | 5173   | ×     | HMR有効。|
 | **本番** | `docker compose --profile prod up` | 80/443 | ○     | HTTPS + 独自ドメイン配信       |
 
 ---
 
-## 🔗 React からの API アクセス
+## ReactからのAPIアクセス
 
 ```ts
 // 現在のオリジンをそのまま利用
@@ -199,19 +196,19 @@ const API_BASE = `${window.location.origin}/api`
 ```
 
 これにより、
-**開発／本番で環境変数の切り替え不要**で API 通信が行えます。
+**開発／本番で環境変数の切り替え不要**でAPI通信が行えます。
 
 ---
 
-## 🧑‍💻 このテンプレートが向いている人
+## このテンプレートが向いている人
 
-* 個人・小規模で PoC／試作を即形にしたい
+* 個人・小規模でPoC／試作を即形にしたい
 * HTTPS／独自ドメインを早期に組み込みたい
 * チームに配布する共通テンプレを整備したい
-* 開発・本番を profile 一つで明示的に切り替えたい
+* 開発・本番をprofile一つで明示的に切り替えたい
 
 ---
 
-## 🪶 License
+## License
 
 MIT License
