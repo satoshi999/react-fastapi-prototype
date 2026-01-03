@@ -148,7 +148,7 @@ ACME_EMAIL=admin@example.com      # Let's Encrypt 通知用
 
 ```caddy
 :5173 {
-  handle /api* {
+  handle /api/* {
     reverse_proxy backend:8000
   }
   handle {
