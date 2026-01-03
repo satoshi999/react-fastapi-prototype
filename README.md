@@ -6,30 +6,38 @@
 
 React（Vite）+ FastAPI + MySQL を Docker Compose で統合し、**入口（外部公開）を1つに集約**して動かします。
 
+## Quickstart
+
+```bash
+cp .env.example .env
+docker compose --profile dev up
+# open http://localhost:5173
+```
+
 ---
+## このテンプレートの特徴（思想）
 
-## このテンプレートの特徴
+### ポイント
 
-### 入口を1つに集約（単一ポート運用）
+- **最短で動く**：`docker compose --profile dev up` ですぐ立ち上がる
+- **単一ポート構成**：Caddyが `/api` をFastAPIに、それ以外をReactに振り分け
+  > 本テンプレでいう「単一ポート」とは、アプリケーションとして外部に公開する入口を1つに集約する、という意味です。
+  > devは `localhost:5173`、prodは 80/443 を Caddy が受けます。
+- **開発/本番をprofileで切り分け**
+  - `dev`：ViteのHMR（5173）で即時開発（`/api` も同じ `localhost:5173` 配下）
+  - `prod`：HTTPS + 独自ドメイン + 静的配信（ビルド済み）
+- **HTTPS/独自ドメイン対応を最速で導入**：Let's Encryptによる自動証明書発行
+- **Todoアプリ付き**：起動直後に動作確認可能
 
-外部に公開する“入口”を1つにまとめ、内部サービス（Frontend / API）を透過的に扱えるようにしています。
+### あえてしていないこと
 
-* 入口：Caddy（リバースプロキシ）
-* ルーティング：`/api` を FastAPI、それ以外を React（Frontend）へ
-* HTTPS：prod では Caddy が Let’s Encrypt（ACME）で証明書を自動発行・更新し、独自ドメインをHTTPS化
+- マイグレーション（Alembic 等）未搭載
+- パフォーマンス最適化（キャッシュ、マルチステージビルド）未実装
+- 長期運用を想定したCI/CD構成や環境分離は最小限
 
-> 本テンプレでいう「単一ポート」とは、
-> アプリケーションとして外部に公開する入口を1つに集約する、という意味です。
-> （HTTP / HTTPS の 80 / 443 は Caddy が受けます）
-
-### dev / prod を profile で切り替え
-
-* `dev`：Vite の HMR で即開発（入口は Caddy）
-* `prod`：Frontend をビルドして静的配信（入口は Caddy）
-
-### すぐ動作確認できる
-
-* Todo アプリ付き（起動直後にUI/ API疎通を確認可能）
+> **目的は「最初のロジックを書き始めるまでの障壁を極限まで減らすこと」。**  
+> プロトタイプ段階では「動くこと」を最優先。  
+> 長期開発や本番運用では、このテンプレを基盤に自由に拡張してください。
 
 ---
 
@@ -46,7 +54,7 @@ React（Vite）+ FastAPI + MySQL を Docker Compose で統合し、**入口（�
 
 ```bash
 cp .env.example .env
-# .env に MySQL パラメータ を設定
+# .env の MySQL は必要に応じて変更
 docker compose --profile dev up
 ```
 
@@ -192,17 +200,6 @@ const API_BASE = `${window.location.origin}/api`
 ```
 
 これにより、**開発／本番で環境変数の切り替え不要**で API 通信が行えます。
-
----
-
-## あえてしていないこと（最小構成のため）
-
-* マイグレーション（Alembic 等）未搭載
-* パフォーマンス最適化（キャッシュ、マルチステージビルド）未実装
-* 長期運用を想定した CI/CD 構成や環境分離は最小限
-
-> 目的は「最初のロジックを書き始めるまでの障壁を極限まで減らすこと」。
-> プロトタイプ段階では「動くこと」を最優先し、必要に応じて拡張してください。
 
 ---
 
