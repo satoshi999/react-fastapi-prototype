@@ -2,100 +2,76 @@
 
 ## 概要
 
-**react-fastapi-prototype**は、「開発初期に即アプリを立ち上げ、ロジックに集中するための最小構成テンプレート」です。
+**react-fastapi-prototype** は、「開発初期に即アプリを立ち上げ、ロジックに集中するための最小構成テンプレート」です。
 
-React (Vite) + FastAPI + MySQLを**Docker Compose**で統合し、
-Caddyによるリバースプロキシで**単一ポート運用**を実現します。
-
-> 本テンプレでいう「単一ポート」とは、  
-> アプリケーションとして外部に公開する入口を1つに集約する、という意味です。  
-> （HTTP / HTTPSの 80 / 443 は Caddy がまとめて受けます）
+React（Vite）+ FastAPI + MySQL を Docker Compose で統合し、**入口（外部公開）を1つに集約**して動かします。
 
 ---
 
-## このテンプレートの思想
+## このテンプレートの特徴
 
-### ポイント
+### 入口を1つに集約（単一ポート運用）
 
-* **最短で動く**：`docker compose up --profile dev`ですぐ立ち上がる
-* **単一ポート構成**：Caddyが `/api`をFastAPIに、それ以外をReactに振り分け
-* **開発/本番をprofileで切り分け**
+外部に公開する“入口”を1つにまとめ、内部サービス（Frontend / API）を透過的に扱えるようにしています。
 
-  * `dev`：ViteのHMR（5173）を使いながら即時開発
-  * `prod`：HTTPS + 独自ドメイン + 静的配信（ビルド済み）
-* **HTTPS/独自ドメイン対応を最速で導入**：Let's Encryptによる自動証明書発行
-* **Todo アプリ付き**：起動直後に動作確認可能
+* 入口：Caddy（リバースプロキシ）
+* ルーティング：`/api` を FastAPI、それ以外を React（Frontend）へ
+* HTTPS：prod では Caddy が Let’s Encrypt（ACME）で証明書を自動発行・更新し、独自ドメインをHTTPS化
 
-### あえてしていないこと
+> 本テンプレでいう「単一ポート」とは、
+> アプリケーションとして外部に公開する入口を1つに集約する、という意味です。
+> （HTTP / HTTPS の 80 / 443 は Caddy が受けます）
 
-* マイグレーション（Alembic 等）未搭載
-* パフォーマンス最適化（キャッシュ、マルチステージビルド）未実装
-* 長期運用を想定したCI/CD構成や環境分離は最小限
+### dev / prod を profile で切り替え
 
-> **目的は「最初のロジックを書き始めるまでの障壁を極限まで減らすこと」。**
->
-> プロトタイプ段階では「動くこと」を最優先。
-> 長期開発や本番運用では、このテンプレを基盤に自由に拡張してください。
+* `dev`：Vite の HMR で即開発（入口は Caddy）
+* `prod`：Frontend をビルドして静的配信（入口は Caddy）
 
----
+### すぐ動作確認できる
 
-## プロファイル運用
-
-| profile  | 用途        | 特徴                             | 公開ポート               |
-| -------- | --------- | ------------------------------ | ------------------- |
-| **dev**  | 開発・HMRあり  | Vite dev server (5173) をそのまま利用 | 5173 |
-| **prod** | 本番・サービス公開 | HTTPS + 独自ドメイン + 静的配信          | 80 / 443            |
+* Todo アプリ付き（起動直後にUI/ API疎通を確認可能）
 
 ---
 
-## 開発（profile=dev）
+## 前提条件
 
-開発時はホットリロード（HMR）を有効にし、
-**Caddyが`/api`をFastAPIに、それ以外をViteに転送**します。
+* Docker / Docker Compose が利用できること
+* `prod` で運用する場合は **80/443 が外部から到達可能**であること（Firewall / Security Group 等）
 
-### 起動手順
+---
+
+## 起動手順
+
+### 開発（dev）
 
 ```bash
+cp .env.example .env
+# .env に MySQL パラメータ を設定
 docker compose --profile dev up
 ```
 
-### アクセス
+※ 開発時は ホストの 5173 は Caddy（入口） が待ち受け、Vite は コンテナ内部で動作します（外部公開しません）。
 
-* React(Vite)：[http://localhost:5173](http://localhost:5173)
-* FastAPI：Caddy経由で`/api`パスにアクセス
+* 入口（Frontend / API 共通）：[http://localhost:5173](http://localhost:5173)
+  * Frontend：`/`
+  * API：`/api/...`
 
 ---
 
-## 本番（profile=prod）
-
-本番では、Viteをビルドして静的配信します。
-Caddyが**Let's Encrypt で自動的に証明書を発行し、HTTPS/独自ドメインで配信**します。
-
-### .envの設定(ドメインとLet's Encrypt通知メールは本番のみ参照)
+### 本番（prod）
 
 ```bash
-# ---- MySQL（共通） ----
-DB_HOST=db
-DB_USER=app
-DB_PASSWORD=app_pw
-DB_ROOT_PASSWORD=password
-DB_NAME=appdb
-
-# ---- 本番のみ使用 ----
-SITE_DOMAIN=example.com           # または 13.112.109.54.nip.io
-ACME_EMAIL=admin@example.com      # Let's Encrypt 通知用
-```
-
-### 起動コマンド
-
-```bash
+# .env に SITE_DOMAIN / ACME_EMAIL を設定
 docker compose --profile prod up
 ```
 
-### アクセス
+※ prod は「変更が確実に反映されること」を優先し、`--profile prod up` 実行時に Frontend を毎回 build します。
 
-* HTTPS：`https://<SITE_DOMAIN>`
-* 自動リダイレクト：`http://<SITE_DOMAIN>` → `https://<SITE_DOMAIN>`
+* 入口（Frontend / API 共通）：`https://<SITE_DOMAIN>`
+
+  * Frontend：`/`
+  * API：`/api/...`
+* `http://<SITE_DOMAIN>` は `https://<SITE_DOMAIN>` に自動リダイレクト
 
 ---
 
@@ -103,7 +79,7 @@ docker compose --profile prod up
 
 ```
 ├── Caddyfile                 # dev用
-├── Caddyfile.prod            # prod用（HTTPS対応）
+├── Caddyfile.prod            # prod用
 ├── docker-compose.yml
 ├── .env.example
 ├── backend/
@@ -119,21 +95,48 @@ docker compose --profile prod up
 
 ---
 
-## ポート構成とプロキシ挙動
+## ポート構成
 
-| コンポーネント                | ポート    | 用途                  |
-| ---------------------- | ------ | ------------------- |
-| **frontend(Vite)**    | 5173   | 開発時のみHMR用         |
-| **backend(FastAPI)**  | 8000   | APIサーバ             |
-| **db(MySQL)**         | 3306   | DB                  |
-| **proxy-dev(Caddy)**  | 5173   | 開発時：単一ポートに見せるリバプロ   |
-| **proxy-prod(Caddy)** | 80/443 | 本番：HTTPS + 独自ドメイン配信 |
+### 開発（dev）
+
+| 役割       | Service          | ホスト公開 | コンテナ内 | 備考             |
+| -------- | ---------------- | ----: | ----: | -------------- |
+| 入口       | proxy-dev（Caddy） |  5173 |  5173 | 入口を1つに集約       |
+| Frontend | frontend（Vite）   |     - |  5173 | HMR 用（外部公開しない） |
+| API      | backend（FastAPI） |     - |  8000 | 内部のみ           |
+| DB       | db（MySQL）        |     - |  3306 | 内部のみ           |
+
+### 本番（prod）
+
+| 役割    | Service           |  ホスト公開 |  コンテナ内 | 備考             |
+| ----- | ----------------- | -----: | -----: | -------------- |
+| 入口    | proxy-prod（Caddy） | 80/443 | 80/443 | 入口を1つに集約       |
+| build | frontend-build    |      - |      - | dist 生成（ビルド専用） |
+| API   | backend（FastAPI）  |      - |   8000 | 内部のみ           |
+| DB    | db（MySQL）         |      - |   3306 | 内部のみ           |
 
 ---
 
 ## 主要ファイル
 
-### 開発用Caddyfile
+### `.env` の設定（本番項目は prod のみ参照）
+
+```bash
+# ---- MySQL（共通） ----
+DB_HOST=db
+DB_USER=app
+DB_PASSWORD=app_pw
+DB_ROOT_PASSWORD=password
+DB_NAME=appdb
+
+# ---- 本番のみ使用 ----
+SITE_DOMAIN=example.com           # または 13.112.109.54.nip.io
+ACME_EMAIL=admin@example.com      # Let's Encrypt 通知用
+```
+
+* MySQL項目は dev/prod 共通で必須です。cp .env.example .env 後に必要に応じて変更してください。
+
+### Caddyfile（dev）
 
 ```caddy
 :5173 {
@@ -146,7 +149,7 @@ docker compose --profile prod up
 }
 ```
 
-### 本番用Caddyfile.prod
+### Caddyfile（prod）
 
 ```caddy
 {
@@ -181,33 +184,33 @@ https://{$SITE_DOMAIN} {
 
 ---
 
-## 使い分けのまとめ
-
-| 環境     | コマンド                               | ポート    | HTTPS | 備考                     |
-| ------ | ---------------------------------- | ------ | ----- | ---------------------- |
-| **開発** | `docker compose --profile dev up`  | 5173   | ×     | HMR有効。|
-| **本番** | `docker compose --profile prod up` | 80/443 | ○     | HTTPS + 独自ドメイン配信       |
-
----
-
-## ReactからのAPIアクセス
+## React からの API アクセス
 
 ```ts
 // 現在のオリジンをそのまま利用
 const API_BASE = `${window.location.origin}/api`
 ```
 
-これにより、
-**開発／本番で環境変数の切り替え不要**でAPI通信が行えます。
+これにより、**開発／本番で環境変数の切り替え不要**で API 通信が行えます。
+
+---
+
+## あえてしていないこと（最小構成のため）
+
+* マイグレーション（Alembic 等）未搭載
+* パフォーマンス最適化（キャッシュ、マルチステージビルド）未実装
+* 長期運用を想定した CI/CD 構成や環境分離は最小限
+
+> 目的は「最初のロジックを書き始めるまでの障壁を極限まで減らすこと」。
+> プロトタイプ段階では「動くこと」を最優先し、必要に応じて拡張してください。
 
 ---
 
 ## このテンプレートが向いている人
 
-* 個人・小規模でPoC／試作を即形にしたい
-* HTTPS／独自ドメインを早期に組み込みたい
+* 個人・小規模で PoC／試作を即形にしたい
+* 開発・本番を profile 一つで明示的に切り替えたい
 * チームに配布する共通テンプレを整備したい
-* 開発・本番をprofile一つで明示的に切り替えたい
 
 ---
 
